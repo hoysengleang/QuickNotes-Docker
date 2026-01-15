@@ -1,0 +1,22 @@
+# --- .NET (Backend) ---
+api/bin/
+api/obj/
+api/.vs/
+api/*.user
+api/appsettings.Development.json
+
+# --- Node/Vue (Frontend) ---
+client/node_modules/
+client/dist/
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
+client/.idea/
+client/.vscode/
+
+# --- System ---
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+docker-compose.override.yml

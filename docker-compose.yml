@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 1. SQL Server
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: notes_db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql/data
+
+  # 2. Redis
+  redis:
+    image: redis:alpine
+    container_name: notes_redis
+    ports:
+      - "6379:6379"
+
+  # 3. Backend API
+  api:
+    build: ./api
+    container_name: notes_api
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "5000:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=NotesDb;User Id=sa;Password=Password123!;TrustServerCertificate=True;
+      - ConnectionStrings__Redis=redis:6379
+    restart: on-failure
+
+  # 4. Frontend Client
+  client:
+    build: ./client
+    container_name: notes_client
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  sql_data:
