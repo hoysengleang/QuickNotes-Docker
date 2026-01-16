@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-// ⚠️ IMPORTANT: Docker uses localhost:5000
-const API_URL = "http://localhost:5000/api";
+// IMPORTANT: Docker uses localhost:5000
+const API_URL = `${import.meta.env.VITE_API_BASE_URL}/api`;
 
 interface User {
     id: number;

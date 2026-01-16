@@ -43,7 +43,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // ---------------------------
-// ✅ DB Initialization Logic
+// DB Initialization Logic
 // ---------------------------
 using (var scope = app.Services.CreateScope())
 {
@@ -174,7 +174,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError("❌ Critical DB Init Error: " + ex.Message);
+        logger.LogError("Critical DB Init Error: " + ex.Message);
     }
 }
 
