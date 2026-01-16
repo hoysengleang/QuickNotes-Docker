@@ -11,6 +11,7 @@ interface User {
 
 interface LoginPayload {
     username: string;
+    password: string;
 }
 
 const router = useRouter();
@@ -25,10 +26,14 @@ const handleLogin = async (): Promise<void> => {
     await new Promise<void>(r => setTimeout(r, 800));
 
     try {
-        const payload: LoginPayload = { username: username.value };
+        const payload: LoginPayload = { 
+            username: username.value,
+            password: password.value
+        };
 
         // API Call
-        const response = await fetch('http://localhost:5000/api/auth/login', {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+        const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -38,7 +43,7 @@ const handleLogin = async (): Promise<void> => {
             const userData: User = await response.json();
             
             if (userData && userData.username) {
-                localStorage.setItem('user', userData.username);
+                localStorage.setItem('user', JSON.stringify(userData));
                 router.push('/'); 
             } else {
                 message.value = "Invalid response from server.";
@@ -132,23 +137,6 @@ const handleLogin = async (): Promise<void> => {
                 <p class="text-gray-500">Please enter your details to sign in.</p>
             </div>
 
-            <!-- Social Login Placeholders -->
-             <div class="grid grid-cols-2 gap-4">
-                <button class="flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
-                     <span class="text-sm font-medium text-gray-700">Google</span>
-                </button>
-                 <button class="flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                     <img src="https://www.svgrepo.com/show/512317/github-142.svg" class="w-5 h-5" alt="GitHub">
-                     <span class="text-sm font-medium text-gray-700">GitHub</span>
-                </button>
-             </div>
-
-             <div class="relative flex items-center gap-4">
-                 <div class="h-px bg-gray-200 w-full"></div>
-                 <span class="text-xs text-gray-400 uppercase tracking-wider bg-[#fcfbf9] px-2 whitespace-nowrap">Or sign in with email</span>
-                 <div class="h-px bg-gray-200 w-full"></div>
-             </div>
 
             <form @submit.prevent="handleLogin" class="space-y-6">
                 
@@ -173,13 +161,7 @@ const handleLogin = async (): Promise<void> => {
                     />
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                         <input type="checkbox" id="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                         <label for="remember" class="text-sm text-gray-600 select-none cursor-pointer">Remember me</label>
-                    </div>
-                    <a href="#" class="text-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</a>
-                </div>
+
 
                 <button 
                     type="submit" 

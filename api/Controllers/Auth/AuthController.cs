@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Dapper;
-using System.Data;
 using api.Models;
+using api.Repositories;
 
 namespace api.Controllers.Auth
 {
@@ -9,38 +8,65 @@ namespace api.Controllers.Auth
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly IDbConnection _db;
+        private readonly IAuthRepository _repo;
 
-        public AuthController(IDbConnection db)
+        public AuthController(IAuthRepository repo)
         {
-            _db = db;
+            _repo = repo;
+        }
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterDto request)
+        {
+            if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+                return BadRequest(new { message = "Username and Password are required" });
+
+            if (await _repo.UserExistsAsync(request.Username))
+                return BadRequest(new { message = "Username already exists." });
+
+            string passwordHash = ComputeSha256Hash(request.Password);
+
+            var newUser = new User {
+                Username = request.Username,
+                PasswordHash = passwordHash,
+                IsAdmin = false
+            };
+
+            var newId = await _repo.CreateUserAsync(newUser);
+
+            return Ok(new { Id = newId, request.Username, IsAdmin = false });
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
-            if (string.IsNullOrEmpty(request.Username))
-                return BadRequest(new { message = "Username is required" });
+            if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+                return BadRequest(new { message = "Username and Password are required" });
 
-            // 1. Check if user exists
-            var sqlUser = "SELECT * FROM Users WHERE Username = @Username";
-            var user = await _db.QuerySingleOrDefaultAsync<User>(sqlUser, new { request.Username });
+            var user = await _repo.GetUserByUsernameAsync(request.Username);
 
             if (user == null)
-            {
-                // 2. If not, REGISTER them automatically (Simulating a quick onboarding)
-                var insertSql = @"
-                    INSERT INTO Users (Username, IsAdmin) 
-                    VALUES (@Username, 0); 
-                    SELECT CAST(SCOPE_IDENTITY() as int);";
-                
-                var newId = await _db.ExecuteScalarAsync<int>(insertSql, new { request.Username });
-                
-                user = new User { Id = newId, Username = request.Username, IsAdmin = false };
-            }
+                return Unauthorized(new { message = "Invalid username or password." });
 
-            // 3. Return the user info (Frontend will save this to localStorage)
-            return Ok(user);
+            string inputHash = ComputeSha256Hash(request.Password);
+            if (user.PasswordHash != inputHash)
+                 return Unauthorized(new { message = "Invalid username or password." });
+
+            return Ok(new { user.Id, user.Username, user.IsAdmin });
+        }
+
+        private static string ComputeSha256Hash(string rawData)
+        {
+            using (System.Security.Cryptography.SHA256 sha256Hash = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] bytes = sha256Hash.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawData));
+                System.Text.StringBuilder builder = new System.Text.StringBuilder();
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    builder.Append(bytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
         }
     }
 }

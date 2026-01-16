@@ -8,7 +8,11 @@ using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(); 
 
@@ -24,7 +28,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // Repositories
-builder.Services.AddScoped<NoteRepository>();
+builder.Services.AddScoped<INoteRepository, NoteRepository>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -92,8 +97,15 @@ using (var scope = app.Services.CreateScope())
                 CREATE TABLE Users (
                     Id INT IDENTITY(1,1) PRIMARY KEY, 
                     Username NVARCHAR(50), 
+                    PasswordHash NVARCHAR(255),
                     IsAdmin BIT DEFAULT 0
                 );
+
+                -- Migration: Add PasswordHash if it doesn't exist
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'PasswordHash' AND Object_ID = Object_ID(N'Users'))
+                BEGIN
+                    ALTER TABLE Users ADD PasswordHash NVARCHAR(255) DEFAULT '';
+                END
 
                 IF OBJECT_ID('Notes', 'U') IS NULL 
                 CREATE TABLE Notes (
@@ -101,14 +113,51 @@ using (var scope = app.Services.CreateScope())
                     Title NVARCHAR(100), 
                     Content NVARCHAR(MAX), 
                     UserId INT, 
-                    CreatedAt DATETIME DEFAULT GETDATE()
+                    CreatedAt DATETIME DEFAULT GETDATE(),
+                    UpdatedAt DATETIME NULL,
+                    Color NVARCHAR(20) DEFAULT 'default',
+                    IsPinned BIT DEFAULT 0
                 );
+
+                -- Migration: Add UpdatedAt if it doesn't exist
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'UpdatedAt' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD UpdatedAt DATETIME NULL;
+                END
+
+                -- Migration: Add Color and IsPinned
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'Color' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD Color NVARCHAR(20) DEFAULT 'default';
+                END
+
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'IsPinned' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD IsPinned BIT DEFAULT 0;
+                END
+
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'ImageUrl' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD ImageUrl NVARCHAR(MAX) NULL;
+                END
+
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'IsDeleted' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD IsDeleted BIT DEFAULT 0;
+                END
+
+                IF NOT EXISTS(SELECT * FROM sys.columns WHERE Name = N'DeletedAt' AND Object_ID = Object_ID(N'Notes'))
+                BEGIN
+                    ALTER TABLE Notes ADD DeletedAt DATETIME NULL;
+                END
 
                 IF OBJECT_ID('ErrorLogs', 'U') IS NULL 
                 CREATE TABLE ErrorLogs (
                     Id INT IDENTITY(1,1) PRIMARY KEY, 
-                    Message NVARCHAR(MAX), 
-                    StackTrace NVARCHAR(MAX), 
+                    UserId INT NULL,
+                    Message NVARCHAR(MAX) NOT NULL, 
+                    StackTrace NVARCHAR(MAX) NULL, 
+                    Source NVARCHAR(50) DEFAULT 'Unknown',
                     CreatedAt DATETIME DEFAULT GETDATE()
                 );
             ";
@@ -129,7 +178,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ✅ .NET 8 Swagger Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -5,6 +5,10 @@ api/.vs/
 api/*.user
 api/appsettings.Development.json
 
+# --- .NET (Tests) ---
+api.tests/bin/
+api.tests/obj/
+
 # --- Node/Vue (Frontend) ---
 client/node_modules/
 client/dist/
@@ -20,3 +24,6 @@ Thumbs.db
 
 # --- Docker ---
 docker-compose.override.yml
+
+
+.env

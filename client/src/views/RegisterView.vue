@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import LegalModal from '../components/LegalModal.vue';
 
 // Define strict interfaces
 interface User {
@@ -11,28 +12,61 @@ interface User {
 
 interface RegisterPayload {
     username: string;
+    password: string;
 }
 
 const router = useRouter();
 const username = ref<string>('');
-const email = ref<string>(''); // Visual only
-const password = ref<string>(''); // Visual only
-const confirmPassword = ref<string>(''); // Visual only
+const email = ref<string>(''); 
+const password = ref<string>(''); 
+const confirmPassword = ref<string>(''); 
+const agreedToTerms = ref<boolean>(false);
+const showLegalModal = ref<boolean>(false);
+const legalModalType = ref<'terms' | 'privacy'>('terms');
 const message = ref<string>('');
 const loading = ref<boolean>(false);
+
+const openLegalModal = (type: 'terms' | 'privacy') => {
+    legalModalType.value = type;
+    showLegalModal.value = true;
+};
 
 const handleRegister = async (): Promise<void> => {
     loading.value = true;
     message.value = '';
     
-    // Simulate delay
     await new Promise<void>(r => setTimeout(r, 800));
 
-    try {
-        const payload: RegisterPayload = { username: username.value };
+    if (!agreedToTerms.value) {
+        message.value = "You must agree to the Terms of Service.";
+        loading.value = false;
+        return;
+    }
 
-        // API Call (Auto-provisioning handled by Login endpoint)
-        const response = await fetch('http://localhost:5000/api/auth/login', {
+    // Validate Password
+    if (password.value !== confirmPassword.value) {
+        message.value = "Passwords do not match.";
+        loading.value = false;
+        return;
+    }
+
+    // Best Practice Validation: Min 8 chars, 1 Upper, 1 Lower, 1 Number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(password.value)) {
+        message.value = "Password must be 8+ characters with uppercase, lowercase, and a number.";
+        loading.value = false;
+        return;
+    }
+
+    try {
+        const payload: RegisterPayload = { 
+            username: username.value,
+            password: password.value 
+        };
+
+        // API Call
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+        const response = await fetch(`${apiBaseUrl}/api/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -42,7 +76,7 @@ const handleRegister = async (): Promise<void> => {
            const userData: User = await response.json();
            
            if (userData && userData.username) {
-               localStorage.setItem('user', userData.username);
+               localStorage.setItem('user', JSON.stringify(userData));
                router.push('/'); 
            } else {
                message.value = "Account created but invalid response received.";
@@ -169,9 +203,9 @@ const handleRegister = async (): Promise<void> => {
                 </div>
 
                 <div class="flex items-start gap-2 pt-2">
-                     <input type="checkbox" id="terms" class="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                     <input v-model="agreedToTerms" type="checkbox" id="terms" class="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                      <label for="terms" class="text-sm text-gray-600 select-none cursor-pointer">
-                        I agree to the <a href="#" class="text-blue-600 hover:underline">Terms of Service</a> and <a href="#" class="text-blue-600 hover:underline">Privacy Policy</a>.
+                        I agree to the <a href="#" @click.prevent="openLegalModal('terms')" class="text-blue-600 hover:underline">Terms of Service</a> and <a href="#" @click.prevent="openLegalModal('privacy')" class="text-blue-600 hover:underline">Privacy Policy</a>.
                      </label>
                 </div>
 
@@ -196,5 +230,7 @@ const handleRegister = async (): Promise<void> => {
             </p>
         </div>
     </div>
+    
+    <LegalModal v-model="showLegalModal" :type="legalModalType" />
   </div>
 </template>
