@@ -5,6 +5,7 @@ services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: notes_db
+    user: root
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=Password123!
