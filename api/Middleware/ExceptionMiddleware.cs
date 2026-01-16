@@ -31,7 +31,9 @@ namespace api.Middleware {
                     var db = scope.ServiceProvider.GetRequiredService<IDbConnection>();
                     var sql = "INSERT INTO ErrorLogs (Message, StackTrace, CreatedAt) VALUES (@Message, @StackTrace, GETDATE())";
                     await db.ExecuteAsync(sql, new { Message = ex.Message, StackTrace = ex.ToString() });
-                } catch { /* If DB is down, just suppress */ }
+                } catch { 
+                    /* If DB is down, just suppress */ 
+                }
             }
         }
 

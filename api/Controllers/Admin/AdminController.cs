@@ -18,7 +18,6 @@ namespace api.Controllers.Admin
         [HttpGet("logs")]
         public async Task<IActionResult> GetErrorLogs([FromHeader(Name = "x-user-id")] int userId)
         {
-            // 🔒 SECURITY: Verify Admin Status
             var isAdmin = await _db.ExecuteScalarAsync<bool>(
                 "SELECT IsAdmin FROM Users WHERE Id = @Id", 
                 new { Id = userId }
@@ -29,7 +28,6 @@ namespace api.Controllers.Admin
                 return StatusCode(403, new { message = "⛔ Access Denied. Admins only." });
             }
 
-            // ✅ Fetch Logs
             var logs = await _db.QueryAsync("SELECT TOP 50 * FROM ErrorLogs ORDER BY CreatedAt DESC");
             return Ok(logs);
         }
