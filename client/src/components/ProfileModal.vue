@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
     modelValue: boolean;
-    user: any;
+    user?: any;
     noteCount?: number;
 }>();
 
