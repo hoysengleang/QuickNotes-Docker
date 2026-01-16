@@ -59,7 +59,7 @@ using (var scope = app.Services.CreateScope())
         // 2. Create a modified string pointing to 'master' so we can create the DB
         var masterConnectionString = new SqlConnectionStringBuilder(originalConnectionString)
         {
-            InitialCatalog = "master" // 👈 Switch to 'master' database
+            InitialCatalog = "master" 
         }.ConnectionString;
 
         // 3. Retry Loop: Wait for SQL Server to wake up
@@ -82,7 +82,7 @@ using (var scope = app.Services.CreateScope())
             catch (Exception ex)
             {
                 retries++;
-                if (retries > 30) throw; // Give up after 2.5 mins
+                if (retries > 30) throw; 
                 logger.LogWarning($"⚠️ SQL Server not ready. Retrying in 5s... (Attempt {retries}/30) Error: {ex.Message}");
                 System.Threading.Thread.Sleep(5000);
             }
@@ -164,7 +164,7 @@ using (var scope = app.Services.CreateScope())
             db.Execute(sql);
 
             // 6. Create Admin User
-            var count = db.ExecuteScalar<int>("SELECT COUNT(*) FROM Users WHERE Username='Admin'");
+            var count = db.ExecuteScalar<int>("SELECT COUNT(*) FROM Users WHERE IsAdmin = 1");
             if (count == 0)
             {
                 db.Execute("INSERT INTO Users (Username, IsAdmin) VALUES ('Admin', 1)");

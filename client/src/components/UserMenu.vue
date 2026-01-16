@@ -26,7 +26,7 @@ onUnmounted(() => document.removeEventListener('click', close));
             @click.stop="toggle"
             class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg border border-white/10 hover:ring-2 hover:ring-indigo-400 transition-all"
         >
-            {{ user?.Username?.charAt(0).toUpperCase() || 'U' }}
+            {{ (user?.username || user?.Username || 'U').charAt(0).toUpperCase() }}
         </button>
 
         <!-- Dropdown Menu -->
@@ -44,7 +44,7 @@ onUnmounted(() => document.removeEventListener('click', close));
             >
                 <!-- User Info Header -->
                 <div class="px-5 py-4 border-b border-white/5 bg-white/5">
-                    <p class="text-white font-medium truncate">{{ user?.Username }}</p>
+                    <p class="text-white font-medium truncate">{{ user?.username || user?.Username || 'User' }}</p>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                         <span class="text-xs text-green-400 font-medium">Active Now</span>

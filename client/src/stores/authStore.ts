@@ -5,9 +5,9 @@ import axios from 'axios';
 const API_URL = "http://localhost:5000/api";
 
 interface User {
-  id: number;
-  username: string;
-  isAdmin: boolean;
+    id: number;
+    username: string;
+    isAdmin: boolean;
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -15,12 +15,11 @@ export const useAuthStore = defineStore('auth', {
         // Restore user from localStorage if they refresh the page
         user: JSON.parse(localStorage.getItem('user') || 'null') as User | null
     }),
-    
+
     actions: {
         async login(username: string) {
-            // Call your AuthController
             const res = await axios.post(`${API_URL}/auth/login`, { username });
-            
+
             // Save to State & LocalStorage
             this.user = res.data;
             localStorage.setItem('user', JSON.stringify(res.data));
