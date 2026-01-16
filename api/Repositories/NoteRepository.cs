@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 
 namespace api.Repositories {
-    public class NoteRepository {
+    public class NoteRepository : INoteRepository {
         private readonly IDbConnection _db;
         private readonly IDistributedCache _cache;
 
@@ -15,28 +15,101 @@ namespace api.Repositories {
         }
 
         public async Task<IEnumerable<Note>> GetAllAsync(int userId) {
+            await CleanupTrashAsync();
+
             string key = $"notes_{userId}";
             
-            // 1. Redis Cache Check
             var cached = await _cache.GetStringAsync(key);
             if (!string.IsNullOrEmpty(cached)) {
                 return JsonSerializer.Deserialize<IEnumerable<Note>>(cached);
             }
 
-            // 2. Database Fetch
-            var sql = "SELECT * FROM Notes WHERE UserId = @UserId ORDER BY CreatedAt DESC";
+            var sql = "SELECT * FROM Notes WHERE UserId = @UserId AND IsDeleted = 0 ORDER BY CreatedAt DESC";
             var notes = await _db.QueryAsync<Note>(sql, new { UserId = userId });
 
-            // 3. Save to Redis (5 mins)
+            //  Redis (5 mins)
             await _cache.SetStringAsync(key, JsonSerializer.Serialize(notes), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
             
             return notes;
         }
 
-        public async Task CreateAsync(Note note) {
-            var sql = "INSERT INTO Notes (Title, Content, UserId, CreatedAt) VALUES (@Title, @Content, @UserId, GETDATE())";
-            await _db.ExecuteAsync(sql, note);
+        public async Task<IEnumerable<Note>> GetTrashAsync(int userId) {
+            // Cleanup old trash
+            await CleanupTrashAsync();
+            
+            var sql = "SELECT * FROM Notes WHERE UserId = @UserId AND IsDeleted = 1 ORDER BY DeletedAt DESC";
+            return await _db.QueryAsync<Note>(sql, new { UserId = userId });
+        }
+
+        public async Task<Note?> GetByIdAsync(int id, int userId) {
+            var sql = "SELECT * FROM Notes WHERE Id = @Id AND UserId = @UserId";
+            return await _db.QuerySingleOrDefaultAsync<Note>(sql, new { Id = id, UserId = userId });
+        }
+
+        public async Task<int> CreateAsync(Note note) {
+            var sql = @"
+                INSERT INTO Notes (Title, Content, UserId, CreatedAt, UpdatedAt, Color, IsPinned, ImageUrl, IsDeleted) 
+                VALUES (@Title, @Content, @UserId, GETDATE(), GETDATE(), @Color, @IsPinned, @ImageUrl, 0);
+                SELECT CAST(SCOPE_IDENTITY() as int);";
+            
+            var parameters = new {
+                note.Title,
+                note.Content,
+                note.UserId,
+                note.Color,
+                note.IsPinned,
+                note.ImageUrl
+            };
+
+            var id = await _db.QuerySingleAsync<int>(sql, parameters);
             await _cache.RemoveAsync($"notes_{note.UserId}"); 
+            return id;
+        }
+
+        public async Task UpdateAsync(Note note) {
+            var sql = @"
+                UPDATE Notes 
+                SET Title = @Title, Content = @Content, Color = @Color, IsPinned = @IsPinned, ImageUrl = @ImageUrl, UpdatedAt = GETDATE()
+                WHERE Id = @Id AND UserId = @UserId";
+            
+            var parameters = new {
+                note.Id,
+                note.UserId,
+                note.Title,
+                note.Content,
+                note.Color,
+                note.IsPinned,
+                note.ImageUrl
+            };
+
+            await _db.ExecuteAsync(sql, parameters);
+            await _cache.RemoveAsync($"notes_{note.UserId}");
+        }
+
+        // Soft Delete
+        public async Task DeleteAsync(int id, int userId) {
+            var sql = "UPDATE Notes SET IsDeleted = 1, DeletedAt = GETDATE() WHERE Id = @Id AND UserId = @UserId";
+            await _db.ExecuteAsync(sql, new { Id = id, UserId = userId });
+            await _cache.RemoveAsync($"notes_{userId}");
+        }
+
+        // Restore
+        public async Task RestoreAsync(int id, int userId) {
+            var sql = "UPDATE Notes SET IsDeleted = 0, DeletedAt = NULL WHERE Id = @Id AND UserId = @UserId";
+            await _db.ExecuteAsync(sql, new { Id = id, UserId = userId });
+            await _cache.RemoveAsync($"notes_{userId}");
+        }
+
+        // Hard Delete (Permanent)
+        public async Task HardDeleteAsync(int id, int userId) {
+            var sql = "DELETE FROM Notes WHERE Id = @Id AND UserId = @UserId";
+            await _db.ExecuteAsync(sql, new { Id = id, UserId = userId });
+            await _cache.RemoveAsync($"notes_{userId}");
+        }
+
+        private async Task CleanupTrashAsync() {
+            var sql = "DELETE FROM Notes WHERE IsDeleted = 1 AND DeletedAt < DATEADD(day, -7, GETDATE())";
+            await _db.ExecuteAsync(sql);
         }
     }
 }
