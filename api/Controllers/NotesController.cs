@@ -16,10 +16,10 @@ namespace api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int userId)
+        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] int page, [FromQuery] int pageSize)
         {
             if (userId <= 0) return BadRequest("UserId is required.");
-            var notes = await _repo.GetAllAsync(userId);
+            var notes = await _repo.GetAllAsync(userId, page, pageSize);    
             return Ok(notes);
         }
 

@@ -5,7 +5,7 @@ namespace api.Repositories
 {
     public interface INoteRepository
     {
-        Task<IEnumerable<Note>> GetAllAsync(int userId);
+        // Task<IEnumerable<Note>> GetAllAsync(int userId);
         Task<IEnumerable<Note>> GetTrashAsync(int userId);
         Task<PagedResult<Note>> GetAllAsync(int userId, int page, int pageSize);
         Task<Note?> GetByIdAsync(int id, int userId);
