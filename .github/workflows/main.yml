@@ -1,0 +1,64 @@
+name: 🚀 Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ------------------------------------
+  # JOB 1: Test .NET Backend
+  # ------------------------------------
+  build-backend:
+    name: 🧠 Backend Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4 
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Restore Dependencies
+      run: dotnet restore ./api/api.csproj
+      
+    - name: Build Application
+      run: dotnet build ./api/api.csproj --configuration Release --no-restore
+
+  # ------------------------------------
+  # JOB 2: Test Vue Frontend
+  # ------------------------------------
+  build-frontend:
+    name: 🎨 Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client 
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm' 
+        cache-dependency-path: ./client/package-lock.json
+        
+    - name: Install Dependencies
+      run: npm ci 
+      
+    - name: Build Vue App
+      run: npm run build
+
+  # ------------------------------------
+  # JOB 3: Verify Docker Configuration
+  # ------------------------------------
+  docker-check:
+    name: 🐳 Docker Verification
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate Docker Compose
+      run: docker compose build
