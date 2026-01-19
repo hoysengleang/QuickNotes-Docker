@@ -2,7 +2,7 @@ name: 🚀 Build & Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/add-ci-pipeline" ]
   pull_request:
     branches: [ "main" ]
 
