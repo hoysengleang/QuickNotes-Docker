@@ -3,6 +3,7 @@ using System.Data;
 using api.Models;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using api.Share;
 
 namespace api.Repositories {
     public class NoteRepository : INoteRepository {
@@ -110,6 +111,52 @@ namespace api.Repositories {
         private async Task CleanupTrashAsync() {
             var sql = "DELETE FROM Notes WHERE IsDeleted = 1 AND DeletedAt < DATEADD(day, -7, GETDATE())";
             await _db.ExecuteAsync(sql);
+        }
+
+
+        public async Task<PagedResult<Note>> GetAllAsync(int userId, int page, int pageSize)
+        {
+            await CleanupTrashAsync(); 
+
+            string key = $"notes_{userId}_{page}_{pageSize}";
+
+            var cached = await _cache.GetStringAsync(key);
+
+            if (!string.IsNullOrEmpty(cached))
+            {
+                return JsonSerializer.Deserialize<PagedResult<Note>>(cached);
+            }
+
+            var sql = @"
+                SELECT COUNT(*) FROM Notes WHERE UserId = @UserId AND IsDeleted = 0;
+
+                SELECT * FROM Notes 
+                WHERE UserId = @UserId AND IsDeleted = 0 
+                ORDER BY CreatedAt DESC
+                OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;";
+
+            var parameters = new { 
+                UserId = userId, 
+                Skip = (page - 1) * pageSize, 
+                Take = pageSize 
+            };
+
+            using (var multi = await _db.QueryMultipleAsync(sql, parameters))
+            {
+                var totalCount = await multi.ReadFirstAsync<int>();
+
+                var notes = await multi.ReadAsync<Note>();
+
+                var result = PageMeta.Paginate(notes, totalCount, page, pageSize);
+
+                await _cache.SetStringAsync(
+                    key, 
+                    JsonSerializer.Serialize(result), 
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) }
+                );
+
+                return result;
+            }
         }
     }
 }
