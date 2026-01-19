@@ -26,6 +26,9 @@ jobs:
     - name: Build Application
       run: dotnet build ./api/api.csproj --configuration Release --no-restore
 
+    - name: Run Unit Tests
+      run: dotnet test ./api.tests/api.tests.csproj --no-build --verbosity normal
+
   # ------------------------------------
   # JOB 2: Test Vue Frontend
   # ------------------------------------
